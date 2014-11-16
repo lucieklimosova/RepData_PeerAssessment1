@@ -5,21 +5,78 @@ output:
     keep_md: true
 ---
 
-
 ## Loading and preprocessing the data
-
-
+Load the data:
+```{r}
+mydata <- read.csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
-
-
+Ignoring missing values.
+Histogram of the total number of steps taken each day:
+```{r}
+hist(mydata$steps, main=paste("Histogram of # of steps"), xlab = "# of steps")
+```
+Mean and median total number of steps taken per day:
+```{r}
+library(plyr)
+ddply(mydata, ~date, summarise, mean=mean(steps, na.rm=TRUE), median=median(steps, na.rm=TRUE))
+```
 
 ## What is the average daily activity pattern?
-
-
+Time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis):
+```{r}
+library(ggplot2)
+aggr <- aggregate(mydata$steps, by=list(mydata$interval), FUN=mean, na.rm=TRUE)
+names(aggr) <- c("interval","avg")
+ggplot(data=aggr, aes(x=interval, y=avg)) + 
+  geom_line() +
+    ggtitle("Avg # steps")
+```
+Interval with the maximum number of steps across all days:
+```{r}
+aggr[which.max(aggr$avg),]
+```
 
 ## Imputing missing values
+Imputing missing values.
+Total number of missing values in the dataset:
+```{r}
+sum(is.na(mydata$steps))
+```
+Replace missing values with median for given interval across all days:
+```{r}
+mydata2 <- ddply(mydata, 
+      .(interval), 
+      transform, 
+      steps=ifelse(is.na(steps), median(steps, na.rm=TRUE), steps))
+```
 
-
+## What is mean total number of steps taken per day?
+Ignoring missing values.
+Histogram of the total number of steps taken each day:
+```{r}
+hist(mydata2$steps, main=paste("Histogram of # of steps"), xlab = "# of steps")
+```
+Mean and median total number of steps taken per day:
+```{r}
+library(plyr)
+ddply(mydata2, ~date, summarise, mean=mean(steps, na.rm=TRUE), median=median(steps, na.rm=TRUE))
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis), for weekdays vs weekends: 
+```{r}
+mydata2$weekday <- weekdays(as.Date(mydata2$date))
+mydata2$weekday[mydata2$weekday=="Saturday" | mydata2$weekday=="Sunday"] <- "weekend"
+mydata2$weekday[mydata2$weekday!="weekend"] <- "weekday"
+mydata2$weekday <- factor(mydata2$weekday, labels=c("weekday","weekend"))
+
+aggr2 <- aggregate(mydata2$steps, by=list(mydata2$interval,mydata2$weekday), FUN=mean)
+names(aggr2) <- c("interval","weekday","avg")
+ggplot(data=aggr2, aes(x=interval, y=avg)) + 
+     geom_line() +
+     ggtitle("Avg # steps") +
+     facet_grid(weekday ~ .)
+```
+
